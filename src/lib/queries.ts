@@ -78,19 +78,26 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     };
   }
 
-  const todayLogs = await getTodayLogs(userId, challenge.id);
-  const weekLogs = await getWeekLogs(userId, challenge.id);
-
   const weekStart = startOfWeek(new Date());
   const weekEnd = endOfDay(new Date());
-  const weekSuccessDays = await db.daySummary.count({
-    where: {
-      userId,
-      challengeId: challenge.id,
-      date: { gte: weekStart, lte: weekEnd },
-      dailyBonusAwarded: true,
-    },
-  });
+
+  const [todayLogs, weekLogs, weekSuccessDays, rankers] = await Promise.all([
+    getTodayLogs(userId, challenge.id),
+    getWeekLogs(userId, challenge.id),
+    db.daySummary.count({
+      where: {
+        userId,
+        challengeId: challenge.id,
+        date: { gte: weekStart, lte: weekEnd },
+        dailyBonusAwarded: true,
+      },
+    }),
+    db.challengeMember.findMany({
+      where: { challengeId: challenge.id },
+      orderBy: [{ points: "desc" }, { joinedAt: "asc" }],
+      select: { userId: true },
+    }),
+  ]);
 
   const tasks = challenge.tasks;
   const tiers = tasks.flatMap((t) => t.tiers);
@@ -104,11 +111,6 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 
   const completionToday = getDailyCompletionSummary(tasks, todayLogs);
 
-  const rankers = await db.challengeMember.findMany({
-    where: { challengeId: challenge.id },
-    orderBy: [{ points: "desc" }, { joinedAt: "asc" }],
-    select: { userId: true },
-  });
   const rank =
     rankers.findIndex((m) => m.userId === userId) + 1 || rankers.length;
   const memberCount = rankers.length;

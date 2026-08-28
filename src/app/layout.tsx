@@ -40,6 +40,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+export const runtime = "nodejs";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
