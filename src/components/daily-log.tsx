@@ -1,0 +1,359 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { saveTaskLog } from "@/app/actions";
+import {
+  getDailyCompletionSummary,
+  type ChallengeTask,
+  type TaskLog,
+} from "@/lib/scoring";
+
+export function DailyLogClient({
+  challengeId,
+  challengeName,
+  tasks,
+  initialLogs,
+}: {
+  challengeId: string;
+  challengeName: string;
+  tasks: ChallengeTask[];
+  initialLogs: TaskLog[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [logState, setLogState] = useState<Record<string, { completed: boolean; value: number }>>(() => {
+    const state: Record<string, { completed: boolean; value: number }> = {};
+    tasks.forEach((task) => {
+      const log = initialLogs.find((l) => l.taskId === task.id);
+      state[task.id] = {
+        completed: log ? log.completed : false,
+        value: log ? log.value : 0,
+      };
+    });
+    return state;
+  });
+  const [saved, setSaved] = useState(false);
+
+  // Convert logState to TaskLog format for calculating completion
+  const logsList = tasks.map((t) => ({
+    id: "",
+    challengeId,
+    userId: "",
+    taskId: t.id,
+    date: new Date(),
+    completed: logState[t.id]?.completed ?? false,
+    value: logState[t.id]?.value ?? 0,
+  }));
+
+  const completion = getDailyCompletionSummary(tasks, logsList);
+
+  function save(taskId: string, completed: boolean, value: number) {
+    setLogState((prev) => ({
+      ...prev,
+      [taskId]: { completed, value },
+    }));
+    setSaved(true);
+    startTransition(() => {
+      saveTaskLog(challengeId, taskId, completed, value).then(() => {
+        router.refresh();
+      });
+    });
+  }
+
+  function toggle(taskId: string) {
+    const current = logState[taskId] || { completed: false, value: 0 };
+    save(taskId, !current.completed, current.value);
+  }
+
+  function addValue(taskId: string, amount: number) {
+    const current = logState[taskId] || { completed: false, value: 0 };
+    const nextVal = Math.max(0, Math.round((current.value + amount) * 10) / 10);
+    save(taskId, current.completed, nextVal);
+  }
+
+  const dailyHabits = tasks.filter((t) => t.type === "DAILY");
+  const weeklyWorkouts = tasks.filter((t) => t.type === "WEEKLY" && !t.isRuleBreaker && !t.isAlcoholTask);
+  const ruleBreakers = tasks.filter((t) => t.isRuleBreaker || t.isAlcoholTask);
+
+  return (
+    <div className="space-y-6">
+      <CompletionBar completion={completion} pending={isPending} saved={saved} />
+
+      {/* 1. Daily Habits */}
+      {dailyHabits.length > 0 && (
+        <Section title="Daily Habits" subtitle="One-tap, auto-saves">
+          <div className="divide-y divide-card-border">
+            {dailyHabits.map((task) => {
+              const current = logState[task.id] || { completed: false, value: 0 };
+              return (
+                <HabitRow
+                  key={task.id}
+                  label={task.name}
+                  checked={task.isRuleBreaker ? !current.completed : current.completed}
+                  onToggle={() => toggle(task.id)}
+                />
+              );
+            })}
+          </div>
+        </Section>
+      )}
+
+      {/* 2. Workout & Numeric Weekly Progress */}
+      {weeklyWorkouts.length > 0 && (
+        <Section title="Workout Progress" subtitle="Weekly goals auto-tracked">
+          <div className="space-y-4">
+            {weeklyWorkouts.map((task, idx) => {
+              const current = logState[task.id] || { completed: false, value: 0 };
+              const isNumber = task.inputType === "NUMBER";
+              const isPushups = task.name.toLowerCase().includes("pushup") || task.name.toLowerCase().includes("push-up");
+
+              return (
+                <div key={task.id} className={idx > 0 ? "pt-4 border-t border-card-border" : ""}>
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">{task.name}</p>
+                    <p className="text-xs text-muted">
+                      Today:{" "}
+                      <span className="text-foreground font-semibold">
+                        {isNumber ? `${current.value} ${task.target ? "" : ""}` : current.completed ? "Done" : "Not Done"}
+                      </span>
+                    </p>
+                  </div>
+                  {isNumber ? (
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {isPushups ? (
+                        [25, 50, 100].map((n) => (
+                          <QuickAddBtn key={n} label={`+${n}`} onClick={() => addValue(task.id, n)} />
+                        ))
+                      ) : (
+                        [1, 2, 5].map((n) => (
+                          <QuickAddBtn key={n} label={`+${n} km`} onClick={() => addValue(task.id, n)} />
+                        ))
+                      )}
+                      <CustomInput
+                        placeholder="Custom"
+                        onValue={(n) => save(task.id, current.completed, Math.max(0, n))}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex justify-end">
+                      <Toggle checked={current.completed} onChange={() => toggle(task.id)} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      )}
+
+      {/* 3. Rule Breakers */}
+      {ruleBreakers.length > 0 && (
+        <Section title="Rule Breakers" subtitle="Only mark if broken today" highlight>
+          <div className="space-y-2">
+            {ruleBreakers.map((task) => {
+              const current = logState[task.id] || { completed: false, value: 0 };
+              return (
+                <RuleRow
+                  key={task.id}
+                  label={task.name}
+                  broken={current.completed}
+                  onToggle={() => toggle(task.id)}
+                />
+              );
+            })}
+          </div>
+
+          <div className="text-xs text-muted pt-3 border-t border-card-border mt-3 space-y-1">
+            <p>
+              Status:{" "}
+              {ruleBreakers.map((task, idx) => {
+                const current = logState[task.id] || { completed: false, value: 0 };
+                return (
+                  <span key={task.id}>
+                    {idx > 0 && " · "}
+                    <span className={current.completed ? "text-danger" : "text-success font-medium"}>
+                      {task.name}{current.completed ? " ✗" : " ✓"}
+                    </span>
+                  </span>
+                );
+              })}
+            </p>
+            <p className="text-[11px] font-medium pt-1 text-accent">{challengeName}</p>
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  children,
+  highlight,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${
+        highlight ? "border-warning/30 bg-warning/5" : "border-card-border bg-card"
+      }`}
+    >
+      <div className="mb-2">
+        <h2 className="font-semibold text-sm">{title}</h2>
+        {subtitle && <p className="text-muted text-xs">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function HabitRow({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3">
+      <span className={`text-sm ${checked ? "text-foreground font-medium" : "text-muted"}`}>
+        {label}
+      </span>
+      <Toggle checked={checked} onChange={onToggle} />
+    </div>
+  );
+}
+
+function RuleRow({
+  label,
+  broken,
+  onToggle,
+}: {
+  label: string;
+  broken: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <span className={`text-sm ${broken ? "text-danger font-medium" : "text-muted"}`}>
+        {label} {broken ? "(broken)" : ""}
+      </span>
+      <Toggle checked={broken} onChange={onToggle} danger={broken} />
+    </div>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  danger,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+        checked ? (danger ? "bg-danger" : "bg-accent") : "bg-card-border"
+      }`}
+    >
+        <span
+          className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200 ${
+            checked ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+    </button>
+  );
+}
+
+function QuickAddBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-xl bg-background border border-card-border px-4 py-2 text-sm font-semibold hover:border-accent transition"
+    >
+      {label}
+    </button>
+  );
+}
+
+function CustomInput({
+  placeholder,
+  onValue,
+}: {
+  placeholder: string;
+  onValue: (n: number) => void;
+}) {
+  const [text, setText] = useState("");
+  function commit() {
+    const n = parseFloat(text);
+    if (!isNaN(n) && n >= 0) onValue(n);
+    setText("");
+  }
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        commit();
+      }}
+    >
+      <input
+        inputMode="decimal"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        placeholder={placeholder}
+        className="w-24 rounded-xl bg-background border border-card-border px-3 py-2 text-sm outline-none focus:border-accent"
+      />
+    </form>
+  );
+}
+
+function CompletionBar({
+  completion,
+  pending,
+  saved,
+}: {
+  completion: { percent: number; achieved: number; total: number };
+  pending: boolean;
+  saved: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-gradient-to-r from-accent/15 to-accent2/15 border border-accent/20 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold">Today&apos;s completion</span>
+        <span
+          className={`text-xs ${pending ? "text-muted" : saved ? "text-success" : ""}`}
+        >
+          {pending ? "Saving…" : saved ? "Auto-saved ✓" : ""}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="h-3 flex-1 rounded-full bg-background overflow-hidden">
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{ width: `${completion.percent}%` }}
+          />
+        </div>
+        <span className="text-lg font-bold">{completion.percent}%</span>
+      </div>
+      <p className="text-xs text-muted mt-1.5">
+        {completion.achieved}/{completion.total} completed · 75% earns +5 bonus
+      </p>
+    </div>
+  );
+}

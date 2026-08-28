@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b1020;
+  --foreground: #e8ecf7;
+  --muted: #8b93ad;
+  --card: #141b33;
+  --card-border: #242e4d;
+  --accent: #38bdf8;
+  --accent-2: #818cf8;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent-2);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@utility input {
+  @apply w-full rounded-xl bg-card border border-card-border px-3 py-2.5 text-sm outline-none focus:border-accent;
+}

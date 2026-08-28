@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (NextAuth / Auth.js with @auth/prisma-adapter)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  // App profile
+  displayName String?
+  totalPoints Int      @default(0)
+  currentStreak Int    @default(0)
+  longestStreak Int    @default(0)
+
+  accounts          Account[]
+  sessions          Session[]
+  memberships       ChallengeMember[]
+  taskLogs          TaskLog[]
+  daySummaries      DaySummary[]
+  weeklyScores      WeeklyScore[]
+  activity          ActivityEvent[]
+  ownedChallenges   Challenge[]          @relation("ChallengeAdmin")
+  createdAt         DateTime @default(now())
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String  @id @default(cuid())
+  sessionToken String  @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Challenges
+// ---------------------------------------------------------------------------
+
+model Challenge {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+
+  startDate   DateTime
+  endDate     DateTime
+
+  isPublic   Boolean  @default(true)
+  inviteCode String   @unique
+  maxMembers Int?
+  isActive   Boolean  @default(true)
+  ended      Boolean  @default(false)
+
+  adminId String
+  admin   User @relation("ChallengeAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  members      ChallengeMember[]
+  tasks        ChallengeTask[]
+  taskLogs     TaskLog[]
+  daySummaries DaySummary[]
+  weeklyScores WeeklyScore[]
+  activity     ActivityEvent[]
+
+  createdAt DateTime @default(now())
+
+  @@map("challenges")
+}
+
+model ChallengeMember {
+  id          String   @id @default(cuid())
+  challengeId String
+  userId      String
+  joinedAt    DateTime @default(now())
+
+  points        Int     @default(0)
+  currentStreak Int     @default(0)
+  longestStreak Int     @default(0)
+  isAlcoholDrinker Boolean @default(false)
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@map("challenge_members")
+}
+
+model ChallengeTask {
+  id            String      @id @default(cuid())
+  challengeId   String
+  name          String      // e.g. "Gym", "Daily protein target", "No Alcohol"
+  type          String      // "DAILY" | "WEEKLY"
+  inputType     String      // "CHECKBOX" | "NUMBER"
+  isRuleBreaker Boolean     @default(false)
+  isAlcoholTask Boolean     @default(false)
+  points        Int
+  target        Float?      // Target value (e.g. 4.0 for gym, 10.0 for walking)
+
+  challenge     Challenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  tiers         TaskTier[]
+  logs          TaskLog[]
+
+  @@map("challenge_tasks")
+}
+
+model TaskTier {
+  id        String        @id @default(cuid())
+  taskId    String
+  threshold Float
+  points    Int
+
+  task      ChallengeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_tiers")
+}
+
+model TaskLog {
+  id          String        @id @default(cuid())
+  challengeId String
+  userId      String
+  taskId      String
+  date        DateTime      @db.Date
+  completed   Boolean       @default(false)
+  value       Float         @default(0)
+
+  challenge   Challenge     @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task        ChallengeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskId, date])
+  @@map("task_logs")
+}
+
+model DaySummary {
+  id                 String    @id @default(cuid())
+  challengeId        String
+  userId             String
+  date               DateTime  @db.Date
+  completedCount     Int       @default(0)
+  totalCount         Int       @default(0)
+  pointsAwarded      Int       @default(0)
+  dailyBonusAwarded  Boolean   @default(false)
+  streakBonusAwarded Boolean   @default(false)
+
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId, date])
+  @@map("day_summaries")
+}
+
+model WeeklyScore {
+  id          String   @id @default(cuid())
+  challengeId String
+  userId      String
+  weekStart   DateTime @db.Date
+  weekEnd     DateTime @db.Date
+  weekNumber  Int
+  points      Int      @default(0)
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId, weekStart])
+  @@map("weekly_scores")
+}
+
+model ActivityEvent {
+  id          String   @id @default(cuid())
+  challengeId String
+  userId      String
+  date        DateTime @default(now())
+  type        String
+  title       String
+  points      Int      @default(0)
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_events")
+}
