@@ -194,8 +194,8 @@ function ChallengesTasks({
                   <span className="text-sm">{task.name}</span>
                   <span className="text-xs text-accent font-semibold">
                     {task.target
-                      ? `${task.points} pts · ${task.target}/wk`
-                      : `${task.points} pts`}
+                      ? `${task.points} pts · ${task.target} days/wk (Credited Sunday)`
+                      : `${task.points} pts (Credited Sunday)`}
                   </span>
                 </div>
                 {task.tiers.length > 0 && (

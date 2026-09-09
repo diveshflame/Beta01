@@ -1,4 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap');
 @import "tailwindcss";
+
+.font-display {
+  font-family: 'Oswald', 'Arial Narrow', system-ui, sans-serif;
+}
 
 :root {
   --background: #0b1020;
@@ -36,4 +41,44 @@ body {
 
 @utility input {
   @apply w-full rounded-xl bg-card border border-card-border px-3 py-2.5 text-sm outline-none focus:border-accent;
+}
+
+/* --- Flame animation --- */
+.flame-outer { transform-origin: 70px 105px; animation: sway 2s ease-in-out infinite; }
+.flame-inner { transform-origin: 70px 101px; animation: flicker 1.3s ease-in-out infinite; }
+
+@keyframes sway {
+  0%   { transform: scaleY(1) scaleX(1) rotate(0deg); }
+  25%  { transform: scaleY(1.06) scaleX(0.96) rotate(-2deg); }
+  50%  { transform: scaleY(0.95) scaleX(1.04) rotate(1.5deg); }
+  75%  { transform: scaleY(1.04) scaleX(0.97) rotate(-1deg); }
+  100% { transform: scaleY(1) scaleX(1) rotate(0deg); }
+}
+@keyframes flicker {
+  0%   { transform: scaleY(1) translateY(0); opacity: 1; }
+  30%  { transform: scaleY(0.88) translateY(1px); opacity: 0.9; }
+  55%  { transform: scaleY(1.08) translateY(-1px); opacity: 1; }
+  80%  { transform: scaleY(0.94) translateY(0.5px); opacity: 0.95; }
+  100% { transform: scaleY(1) translateY(0); opacity: 1; }
+}
+
+.ember-p { opacity: 0; }
+.ep1 { animation: ember-rise 2.2s ease-out infinite; animation-delay: 0s;   --drift: 8px;  }
+.ep2 { animation: ember-rise 2.6s ease-out infinite; animation-delay: 0.5s; --drift: -9px; }
+.ep3 { animation: ember-rise 2s   ease-out infinite; animation-delay: 1s;   --drift: 4px;  }
+.ep4 { animation: ember-rise 2.8s ease-out infinite; animation-delay: 1.4s; --drift: -4px; }
+.ep5 { animation: ember-rise 2.3s ease-out infinite; animation-delay: 0.8s; --drift: 11px; }
+.ep6 { animation: ember-rise 2.5s ease-out infinite; animation-delay: 1.9s; --drift: -12px;}
+.ep7 { animation: ember-rise 2.1s ease-out infinite; animation-delay: 0.2s; --drift: 2px;  }
+
+@keyframes ember-rise {
+  0%   { transform: translate(0,0) scale(1); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translate(var(--drift, 4px), -65px) scale(0.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame-outer, .flame-inner, .ember-p {
+    animation: none;
+  }
 }

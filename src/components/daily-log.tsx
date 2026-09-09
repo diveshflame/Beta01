@@ -74,11 +74,9 @@ export function DailyLogClient({
     save(taskId, current.completed, nextVal);
   }
 
-  const dailyHabits = tasks.filter((t) => t.type === "DAILY");
-  const weeklyGoals = tasks.filter(
-    (t) => t.type === "WEEKLY" && !t.isRuleBreaker && !t.isAlcoholTask
-  );
-  const ruleBreakers = tasks.filter((t) => t.isRuleBreaker || t.isAlcoholTask);
+  const dailyHabits = tasks.filter((t) => t.type === "DAILY" && !t.isRuleBreaker && !t.isAlcoholTask);
+  const weeklyChallenges = tasks.filter((t) => t.type === "WEEKLY" || t.isRuleBreaker || t.isAlcoholTask);
+  const allLogTasks = tasks;
 
   const weekDone: Record<string, number> = {};
   const weekSum: Record<string, number> = {};
@@ -92,36 +90,29 @@ export function DailyLogClient({
     <div className="space-y-6">
       <CompletionBar completion={completion} pending={isPending} saved={saved} />
 
-      {/* 1. Today's log: daily habits + weekly goals check off per day */}
-      {(dailyHabits.length > 0 || weeklyGoals.length > 0) && (
+      {/* Unified Today's log: daily habits + weekly challenges */}
+      {allLogTasks.length > 0 && (
         <Section
           title="Today's log"
-          subtitle="One-tap, auto-saves · weekly goals count at week end"
+          subtitle="One-tap, auto-saves · Weekly challenge points are calculated & credited on Sunday"
         >
           <div className="divide-y divide-card-border">
-            {dailyHabits.map((task) => {
+            {allLogTasks.map((task) => {
               const current = logState[task.id] || { completed: false, value: 0 };
-              return (
-                <HabitRow
-                  key={task.id}
-                  label={task.name}
-                  checked={
-                    task.isRuleBreaker ? !current.completed : current.completed
-                  }
-                  onToggle={() => toggle(task.id)}
-                />
-              );
-            })}
+              const isWeekly = task.type === "WEEKLY";
 
-            {weeklyGoals.map((task) => {
-              const current = logState[task.id] || { completed: false, value: 0 };
-              if (task.inputType === "NUMBER") {
+              if (isWeekly && task.inputType === "NUMBER") {
                 const total = Math.round(weekSum[task.id] * 10) / 10;
                 return (
                   <div key={task.id} className="py-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{task.name}</span>
-                      <span className="text-[11px] text-muted">
+                      <div>
+                        <span className="text-sm font-medium">{task.name}</span>
+                        <p className="text-[11px] text-muted">
+                          Weekly goal · Credited Sunday ({task.points} pts)
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted">
                         This week:{" "}
                         <span className="text-foreground font-semibold">
                           {total}
@@ -147,66 +138,54 @@ export function DailyLogClient({
                   </div>
                 );
               }
-              const target = task.target || 0;
-              return (
-                <div key={task.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <span
-                      className={`text-sm ${
-                        current.completed
-                          ? "text-foreground font-medium"
-                          : "text-muted"
-                      }`}
-                    >
-                      {task.name}
-                    </span>
-                    <p className="text-[11px] text-muted">
-                      {target > 0
-                        ? `${weekDone[task.id]}/${target} days this week`
-                        : "Weekly goal"}
-                    </p>
-                  </div>
-                  <Toggle checked={current.completed} onChange={() => toggle(task.id)} />
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-      )}
 
-      {/* 3. Rule Breakers */}
-      {ruleBreakers.length > 0 && (
-        <Section title="Rule Breakers" subtitle="Only mark if broken today" highlight>
-          <div className="space-y-2">
-            {ruleBreakers.map((task) => {
-              const current = logState[task.id] || { completed: false, value: 0 };
+              if (isWeekly) {
+                const target = task.target || 0;
+                const doneCount = weekDone[task.id] || 0;
+                const isMet = target > 0 && doneCount >= target;
+
+                return (
+                  <div key={task.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <span
+                        className={`text-sm ${
+                          current.completed
+                            ? "text-foreground font-medium"
+                            : "text-muted"
+                        }`}
+                      >
+                        {task.name}
+                      </span>
+                      <p className="text-[11px] text-muted">
+                        {target > 0 ? (
+                          <>
+                            <span className={isMet ? "text-success font-medium" : ""}>
+                              {doneCount}/{target} days logged this week
+                            </span>
+                            {isMet ? " ✓" : ""} · Credited Sunday ({task.points} pts)
+                          </>
+                        ) : (
+                          `Weekly challenge · Credited Sunday (${task.points} pts)`
+                        )}
+                      </p>
+                    </div>
+                    <Toggle checked={current.completed} onChange={() => toggle(task.id)} />
+                  </div>
+                );
+              }
+
+              // Standard Daily Habit / Task
               return (
-                <RuleRow
+                <HabitRow
                   key={task.id}
                   label={task.name}
-                  broken={current.completed}
+                  checked={
+                    task.isRuleBreaker ? !current.completed : current.completed
+                  }
                   onToggle={() => toggle(task.id)}
                 />
               );
             })}
-          </div>
-
-          <div className="text-xs text-muted pt-3 border-t border-card-border mt-3 space-y-1">
-            <p>
-              Status:{" "}
-              {ruleBreakers.map((task, idx) => {
-                const current = logState[task.id] || { completed: false, value: 0 };
-                return (
-                  <span key={task.id}>
-                    {idx > 0 && " · "}
-                    <span className={current.completed ? "text-danger" : "text-success font-medium"}>
-                      {task.name}{current.completed ? " ✗" : " ✓"}
-                    </span>
-                  </span>
-                );
-              })}
-            </p>
-            <p className="text-[11px] font-medium pt-1 text-accent">{challengeName}</p>
           </div>
         </Section>
       )}

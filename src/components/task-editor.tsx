@@ -116,15 +116,15 @@ export function TaskEditor({
 
     const taskInputs: ChallengeTaskInput[] = validTasks.map((t) => {
       const points = Number(t.points) || 0;
-      const target =
-        t.type === "WEEKLY" && t.target.trim() !== "" ? Number(t.target) : null;
       const isWeekly = t.type === "WEEKLY";
+      const target =
+        isWeekly && t.target.trim() !== "" ? Number(t.target) : isWeekly ? 1 : null;
       return {
         id: t.id ?? undefined,
         name: t.name.trim(),
         type: t.type,
         inputType: "CHECKBOX",
-        isRuleBreaker: isWeekly && target === null,
+        isRuleBreaker: false,
         isAlcoholTask: false,
         points,
         target,
@@ -237,15 +237,17 @@ export function TaskEditor({
                 {task.type === "WEEKLY" && (
                   <label className="block">
                     <span className="text-[11px] text-muted">
-                      Days / week
+                      Times a week
                     </span>
                     <input
                       type="number"
+                      min="1"
+                      max="7"
                       value={task.target}
                       onChange={(e) =>
                         updateTask(task.id!, { target: e.target.value })
                       }
-                      placeholder="e.g. 4 or empty"
+                      placeholder="e.g. 4"
                       className="input"
                     />
                   </label>

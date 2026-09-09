@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
@@ -24,6 +25,8 @@ model User {
   totalPoints Int      @default(0)
   currentStreak Int    @default(0)
   longestStreak Int    @default(0)
+  mantra        String?  @default("I am inevitable")
+  streakTokens  Int      @default(1)
 
   accounts          Account[]
   sessions          Session[]

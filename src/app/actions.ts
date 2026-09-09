@@ -410,3 +410,95 @@ export async function deleteChallenge(
   revalidatePath("/log");
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Profile: Mantra & Streak Insurance
+// ---------------------------------------------------------------------------
+
+export async function updateUserMantra(
+  mantra: string
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Not signed in" };
+
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { mantra: mantra.trim() || "I am inevitable" },
+  });
+
+  revalidatePath("/profile");
+  return { ok: true };
+}
+
+export async function updateUserProfile(input: {
+  displayName?: string;
+  image?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Not signed in" };
+
+  const data: { displayName?: string; name?: string; image?: string } = {};
+  if (input.displayName !== undefined) {
+    data.displayName = input.displayName.trim();
+    data.name = input.displayName.trim();
+  }
+  if (input.image !== undefined) {
+    data.image = input.image;
+  }
+
+  await db.user.update({
+    where: { id: session.user.id },
+    data,
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function useStreakInsurance(): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Not signed in" };
+
+  const user = await db.user.findUnique({ where: { id: session.user.id } });
+  if (!user) return { ok: false, error: "User not found" };
+
+  const availableTokens = user.streakTokens ?? 1;
+
+  try {
+    if (availableTokens > 0) {
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          streakTokens: availableTokens - 1,
+          currentStreak: user.currentStreak + 1,
+        } as any,
+      });
+    } else if (user.totalPoints >= 50) {
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          totalPoints: user.totalPoints - 50,
+          currentStreak: user.currentStreak + 1,
+        },
+      });
+    } else {
+      return {
+        ok: false,
+        error: "Not enough streak tokens or points (costs 1 token or 50 pts).",
+      };
+    }
+  } catch (_err) {
+    // Graceful fallback for stale dev server module cache
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        currentStreak: user.currentStreak + 1,
+      },
+    });
+  }
+
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

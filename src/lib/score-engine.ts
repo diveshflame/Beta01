@@ -236,9 +236,22 @@ async function syncMemberTotals(
     where: { userId, challengeId },
   });
 
+  const now = new Date();
+  const currentWeekStart = startOfWeek(now);
+
+  // Weekly points are credited at the end of the week (Sunday).
+  // Include weekly scores for past weeks OR current week if today is Sunday (day 0) or past week.
+  const creditedWeeklyPoints = weeklyScores.reduce((s, w) => {
+    const isPastWeek = w.weekStart.getTime() < currentWeekStart.getTime();
+    const isSunday = now.getDay() === 0;
+    if (isPastWeek || isSunday) {
+      return s + w.points;
+    }
+    return s;
+  }, 0);
+
   const totalPoints =
-    summaries.reduce((s, d) => s + d.pointsAwarded, 0) +
-    weeklyScores.reduce((s, w) => s + w.points, 0);
+    summaries.reduce((s, d) => s + d.pointsAwarded, 0) + creditedWeeklyPoints;
 
   const membership = await db.challengeMember.findUnique({
     where: { challengeId_userId: { challengeId, userId } },

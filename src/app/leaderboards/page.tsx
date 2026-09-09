@@ -22,7 +22,7 @@ export default async function LeaderboardsPage() {
 
   const members = await db.challengeMember.findMany({
     where: { challengeId },
-    include: { user: { select: { name: true, image: true } } },
+    include: { user: { select: { name: true, image: true, mantra: true } } },
   });
 
   const todayLogs = await db.daySummary.findMany({
@@ -47,6 +47,7 @@ export default async function LeaderboardsPage() {
     userId: m.userId,
     name: m.user.name ?? "Unknown",
     image: m.user.image,
+    mantra: m.user.mantra,
     today: todayByUser.get(m.userId) ?? 0,
     week: weekByUser.get(m.userId) ?? 0,
     overall: m.points,

@@ -75,12 +75,12 @@ export function CreateChallengeForm({ adminName }: { adminName: string }) {
     const taskInputs = validTasks.map((t) => {
       const points = Number(t.points) || 0;
       const isWeekly = t.type === "WEEKLY";
-      const target = isWeekly && t.target.trim() !== "" ? Number(t.target) : null;
+      const target = isWeekly && t.target.trim() !== "" ? Number(t.target) : isWeekly ? 1 : null;
       return {
         name: t.name.trim(),
         type: t.type,
         inputType: "CHECKBOX",
-        isRuleBreaker: isWeekly && target === null,
+        isRuleBreaker: false,
         isAlcoholTask: false,
         points,
         target,
@@ -274,15 +274,17 @@ export function CreateChallengeForm({ adminName }: { adminName: string }) {
                   {task.type === "WEEKLY" && (
                     <label className="block">
                       <span className="text-[11px] text-muted">
-                        Days / week
+                        Times a week
                       </span>
                       <input
                         type="number"
+                        min="1"
+                        max="7"
                         value={task.target}
                         onChange={(e) =>
                           updateTask(task.id, { target: e.target.value })
                         }
-                        placeholder="e.g. 4 or empty"
+                        placeholder="e.g. 4"
                         className="input"
                       />
                     </label>
@@ -291,9 +293,7 @@ export function CreateChallengeForm({ adminName }: { adminName: string }) {
                 <p className="text-[11px] text-muted pl-8">
                   {task.type === "DAILY"
                     ? `Daily habit — members check it off daily for ${Number(task.points) || 0} pts/day.`
-                    : task.target.trim() !== ""
-                    ? `Weekly goal — members check it off on ${task.target} days a week to earn ${Number(task.points) || 0} pts at week end.`
-                    : `Weekly rule — members earn ${Number(task.points) || 0} pts if they don't break it all week.`}
+                    : `Weekly challenge — log daily in Today's log. Evaluated & credited on Sunday if done ${task.target || "N"} days/week (${Number(task.points) || 0} pts).`}
                 </p>
               </div>
             ))}
