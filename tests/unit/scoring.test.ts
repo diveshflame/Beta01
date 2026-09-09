@@ -194,4 +194,41 @@ describe("computeWeeklyResultSummary", () => {
     const res = computeWeeklyResultSummary(weeklyTasks, pushupTiers, weekLogs, 6, 7);
     expect(res.perfectWeek).toBe(false);
   });
+
+  it("awards weekly points when a days/week checkbox goal is met", () => {
+    const goalTasks: ChallengeTask[] = [
+      {
+        id: "w-gym",
+        challengeId: "c1",
+        name: "Gym 4x/week",
+        type: "WEEKLY",
+        inputType: "CHECKBOX",
+        isRuleBreaker: false,
+        isAlcoholTask: false,
+        points: 40,
+        target: 4,
+      },
+    ];
+
+    // 3 days logged → goal not met yet, no points.
+    const threeDays = [
+      log("w-gym", true),
+      log("w-gym", true),
+      log("w-gym", true),
+    ];
+    const partial = computeWeeklyResultSummary(goalTasks, [], threeDays, 3, 7);
+    expect(partial.taskResults[0].achieved).toBe(false);
+    expect(partial.points).toBe(0);
+
+    // 4 days logged → goal met, points awarded.
+    const fourDays = [...threeDays, log("w-gym", true)];
+    const met = computeWeeklyResultSummary(goalTasks, [], fourDays, 4, 7);
+    expect(met.taskResults[0].achieved).toBe(true);
+    expect(met.points).toBe(40);
+
+    // Unchecking one day drops it below the goal.
+    const threeAgain = [...fourDays.slice(0, 3)];
+    const reverted = computeWeeklyResultSummary(goalTasks, [], threeAgain, 3, 7);
+    expect(reverted.taskResults[0].achieved).toBe(false);
+  });
 });

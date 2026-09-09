@@ -291,6 +291,7 @@ export async function joinChallenge(
   let code = codeOrLink.trim();
   const linkMatch = code.match(/\/invite\/([A-Za-z0-9]+)/);
   if (linkMatch) code = linkMatch[1];
+  code = code.toUpperCase();
 
   const challenge = await db.challenge.findUnique({ where: { inviteCode: code } });
   if (!challenge) return { ok: false, error: "Invalid invite code" };
@@ -324,4 +325,88 @@ export async function joinChallenge(
   revalidatePath("/challenges");
   revalidatePath("/dashboard");
   return { ok: true, id: challenge.id };
+}
+
+// ---------------------------------------------------------------------------
+// Leave Challenge
+// ---------------------------------------------------------------------------
+
+export async function leaveChallenge(
+  challengeId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Not signed in" };
+
+  const userId = session.user.id;
+
+  const challenge = await db.challenge.findUnique({
+    where: { id: challengeId },
+    include: { members: true },
+  });
+  if (!challenge) return { ok: false, error: "Challenge not found" };
+
+  const membership = challenge.members.find((m) => m.userId === userId);
+  if (!membership) return { ok: false, error: "You are not a member of this challenge" };
+
+  const isAdmin = challenge.adminId === userId;
+  const otherMembers = challenge.members.filter((m) => m.userId !== userId);
+
+  if (isAdmin && otherMembers.length === 0) {
+    // Owner leaving an empty challenge: delete it entirely.
+    await db.challenge.delete({ where: { id: challengeId } });
+    revalidatePath("/challenges");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  }
+
+  if (isAdmin && otherMembers.length > 0) {
+    // Owner leaving: transfer ownership to the next member.
+    const nextAdmin = otherMembers[0];
+    await db.challenge.update({
+      where: { id: challengeId },
+      data: { adminId: nextAdmin.userId },
+    });
+  }
+
+  // Remove the user's membership and their challenge-scoped data.
+  await db.$transaction([
+    db.taskLog.deleteMany({ where: { userId, challengeId } }),
+    db.daySummary.deleteMany({ where: { userId, challengeId } }),
+    db.weeklyScore.deleteMany({ where: { userId, challengeId } }),
+    db.activityEvent.deleteMany({ where: { userId, challengeId } }),
+    db.challengeMember.delete({
+      where: { challengeId_userId: { challengeId, userId } },
+    }),
+  ]);
+
+  revalidatePath("/challenges");
+  revalidatePath(`/challenges/${challengeId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/log");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Delete Challenge (admin)
+// ---------------------------------------------------------------------------
+
+export async function deleteChallenge(
+  challengeId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Not signed in" };
+
+  const challenge = await db.challenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) return { ok: false, error: "Challenge not found" };
+
+  if (challenge.adminId !== session.user.id) {
+    return { ok: false, error: "Only the challenge creator can delete it" };
+  }
+
+  await db.challenge.delete({ where: { id: challengeId } });
+
+  revalidatePath("/challenges");
+  revalidatePath("/dashboard");
+  revalidatePath("/log");
+  return { ok: true };
 }

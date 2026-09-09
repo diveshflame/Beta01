@@ -90,7 +90,7 @@ export function TaskEditor({
     setSaved(false);
     setTasks((prev) => [
       ...prev,
-      { id: null, name: "", type: "DAILY", points: "", target: "" },
+      { id: newTaskId(), name: "", type: "DAILY", points: "", target: "" },
     ]);
   }
 
@@ -119,12 +119,11 @@ export function TaskEditor({
       const target =
         t.type === "WEEKLY" && t.target.trim() !== "" ? Number(t.target) : null;
       const isWeekly = t.type === "WEEKLY";
-      const inputType = isWeekly && target !== null ? "NUMBER" : "CHECKBOX";
       return {
         id: t.id ?? undefined,
         name: t.name.trim(),
         type: t.type,
-        inputType,
+        inputType: "CHECKBOX",
         isRuleBreaker: isWeekly && target === null,
         isAlcoholTask: false,
         points,
@@ -183,7 +182,7 @@ export function TaskEditor({
         <div className="space-y-3">
           {tasks.map((task, idx) => (
             <div
-              key={task.id ?? task.name + idx}
+              key={task.id}
               className="rounded-xl bg-background border border-card-border p-3 space-y-2"
             >
               <div className="flex items-center gap-2">
@@ -237,7 +236,9 @@ export function TaskEditor({
                 </label>
                 {task.type === "WEEKLY" && (
                   <label className="block">
-                    <span className="text-[11px] text-muted">Target (optional)</span>
+                    <span className="text-[11px] text-muted">
+                      Days / week
+                    </span>
                     <input
                       type="number"
                       value={task.target}

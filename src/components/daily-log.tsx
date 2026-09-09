@@ -14,11 +14,13 @@ export function DailyLogClient({
   challengeName,
   tasks,
   initialLogs,
+  weekLogs = [],
 }: {
   challengeId: string;
   challengeName: string;
   tasks: ChallengeTask[];
   initialLogs: TaskLog[];
+  weekLogs?: TaskLog[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -73,16 +75,29 @@ export function DailyLogClient({
   }
 
   const dailyHabits = tasks.filter((t) => t.type === "DAILY");
-  const weeklyWorkouts = tasks.filter((t) => t.type === "WEEKLY" && !t.isRuleBreaker && !t.isAlcoholTask);
+  const weeklyGoals = tasks.filter(
+    (t) => t.type === "WEEKLY" && !t.isRuleBreaker && !t.isAlcoholTask
+  );
   const ruleBreakers = tasks.filter((t) => t.isRuleBreaker || t.isAlcoholTask);
+
+  const weekDone: Record<string, number> = {};
+  const weekSum: Record<string, number> = {};
+  tasks.forEach((task) => {
+    const logs = weekLogs.filter((l) => l.taskId === task.id);
+    weekDone[task.id] = logs.filter((l) => l.completed).length;
+    weekSum[task.id] = logs.reduce((s, l) => s + (l.value || 0), 0);
+  });
 
   return (
     <div className="space-y-6">
       <CompletionBar completion={completion} pending={isPending} saved={saved} />
 
-      {/* 1. Daily Habits */}
-      {dailyHabits.length > 0 && (
-        <Section title="Daily Habits" subtitle="One-tap, auto-saves">
+      {/* 1. Today's log: daily habits + weekly goals check off per day */}
+      {(dailyHabits.length > 0 || weeklyGoals.length > 0) && (
+        <Section
+          title="Today's log"
+          subtitle="One-tap, auto-saves · weekly goals count at week end"
+        >
           <div className="divide-y divide-card-border">
             {dailyHabits.map((task) => {
               const current = logState[task.id] || { completed: false, value: 0 };
@@ -90,56 +105,68 @@ export function DailyLogClient({
                 <HabitRow
                   key={task.id}
                   label={task.name}
-                  checked={task.isRuleBreaker ? !current.completed : current.completed}
+                  checked={
+                    task.isRuleBreaker ? !current.completed : current.completed
+                  }
                   onToggle={() => toggle(task.id)}
                 />
               );
             })}
-          </div>
-        </Section>
-      )}
 
-      {/* 2. Workout & Numeric Weekly Progress */}
-      {weeklyWorkouts.length > 0 && (
-        <Section title="Workout Progress" subtitle="Weekly goals auto-tracked">
-          <div className="space-y-4">
-            {weeklyWorkouts.map((task, idx) => {
+            {weeklyGoals.map((task) => {
               const current = logState[task.id] || { completed: false, value: 0 };
-              const isNumber = task.inputType === "NUMBER";
-              const isPushups = task.name.toLowerCase().includes("pushup") || task.name.toLowerCase().includes("push-up");
-
-              return (
-                <div key={task.id} className={idx > 0 ? "pt-4 border-t border-card-border" : ""}>
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">{task.name}</p>
-                    <p className="text-xs text-muted">
-                      Today:{" "}
-                      <span className="text-foreground font-semibold">
-                        {isNumber ? `${current.value} ${task.target ? "" : ""}` : current.completed ? "Done" : "Not Done"}
+              if (task.inputType === "NUMBER") {
+                const total = Math.round(weekSum[task.id] * 10) / 10;
+                return (
+                  <div key={task.id} className="py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{task.name}</span>
+                      <span className="text-[11px] text-muted">
+                        This week:{" "}
+                        <span className="text-foreground font-semibold">
+                          {total}
+                          {task.target ? ` / ${task.target}` : ""}
+                        </span>
                       </span>
-                    </p>
-                  </div>
-                  {isNumber ? (
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {isPushups ? (
-                        [25, 50, 100].map((n) => (
-                          <QuickAddBtn key={n} label={`+${n}`} onClick={() => addValue(task.id, n)} />
-                        ))
-                      ) : (
-                        [1, 2, 5].map((n) => (
-                          <QuickAddBtn key={n} label={`+${n} km`} onClick={() => addValue(task.id, n)} />
-                        ))
-                      )}
+                    </div>
+                    <div className="flex gap-2 mt-2 flex-wrap items-center">
+                      {[1, 2, 5].map((n) => (
+                        <QuickAddBtn
+                          key={n}
+                          label={`+${n}`}
+                          onClick={() => addValue(task.id, n)}
+                        />
+                      ))}
                       <CustomInput
                         placeholder="Custom"
-                        onValue={(n) => save(task.id, current.completed, Math.max(0, n))}
+                        onValue={(n) =>
+                          save(task.id, current.completed, Math.max(0, n))
+                        }
                       />
                     </div>
-                  ) : (
-                    <div className="mt-2 flex justify-end">
-                      <Toggle checked={current.completed} onChange={() => toggle(task.id)} />
-                    </div>
-                  )}
+                  </div>
+                );
+              }
+              const target = task.target || 0;
+              return (
+                <div key={task.id} className="flex items-center justify-between py-3">
+                  <div>
+                    <span
+                      className={`text-sm ${
+                        current.completed
+                          ? "text-foreground font-medium"
+                          : "text-muted"
+                      }`}
+                    >
+                      {task.name}
+                    </span>
+                    <p className="text-[11px] text-muted">
+                      {target > 0
+                        ? `${weekDone[task.id]}/${target} days this week`
+                        : "Weekly goal"}
+                    </p>
+                  </div>
+                  <Toggle checked={current.completed} onChange={() => toggle(task.id)} />
                 </div>
               );
             })}
@@ -352,7 +379,8 @@ function CompletionBar({
         <span className="text-lg font-bold">{completion.percent}%</span>
       </div>
       <p className="text-xs text-muted mt-1.5">
-        {completion.achieved}/{completion.total} completed · 75% earns +5 bonus
+        {completion.achieved}/{completion.total} daily tasks done · 75% earns
+        +5 bonus
       </p>
     </div>
   );

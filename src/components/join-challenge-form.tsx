@@ -39,7 +39,7 @@ export function JoinChallengeForm({ initialCode }: { initialCode: string }) {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="ABC12345 or https://…/invite/ABC12345"
-            className="input uppercase tracking-widest"
+            className="input tracking-widest"
             autoFocus
           />
         </div>

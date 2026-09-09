@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getPrimaryChallenge, getTodayLogs } from "@/lib/queries";
+import { getPrimaryChallenge, getTodayLogs, getWeekLogs } from "@/lib/queries";
 import { AppShell } from "@/components/app-shell";
 import { DailyLogClient } from "@/components/daily-log";
 
@@ -14,7 +14,8 @@ export default async function LogPage() {
   const membership = await getPrimaryChallenge(userId);
   if (!membership) redirect("/challenges/new");
 
-  const todayLogs = await getTodayLogs(userId, membership.challenge.id);
+const todayLogs = await getTodayLogs(userId, membership.challenge.id);
+  const weekLogs = await getWeekLogs(userId, membership.challenge.id);
 
   return (
     <AppShell>
@@ -30,6 +31,7 @@ export default async function LogPage() {
           challengeName={membership.challenge.name}
           tasks={membership.challenge.tasks}
           initialLogs={todayLogs}
+          weekLogs={weekLogs}
         />
       </div>
     </AppShell>

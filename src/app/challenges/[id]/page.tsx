@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { EditTasksSection } from "@/components/task-editor";
 import { ChallengeDetailsEditor } from "@/components/challenge-details-editor";
+import { ChallengeDangerZone } from "@/components/challenge-danger-zone";
 import { countdownTo } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +120,12 @@ export default async function ChallengePage({
               members={challenge.members}
               adminId={challenge.adminId}
             />
+
+            <ChallengeDangerZone
+              challengeId={challenge.id}
+              isAdmin={isAdmin}
+              memberCount={challenge.members.length}
+            />
           </>
         )}
       </div>
@@ -179,15 +186,15 @@ function ChallengesTasks({
       )}
       {weekly.length > 0 && (
         <div className="rounded-2xl bg-card border border-card-border p-4">
-          <h3 className="text-sm font-semibold mb-2">Weekly Challenges</h3>
+          <h3 className="text-sm font-semibold mb-2">Weekly Goals</h3>
           <div className="divide-y divide-card-border">
             {weekly.map((task) => (
               <div key={task.id} className="py-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">{task.name}</span>
                   <span className="text-xs text-accent font-semibold">
-                    {task.tiers.length > 0
-                      ? `tiers`
+                    {task.target
+                      ? `${task.points} pts · ${task.target}/wk`
                       : `${task.points} pts`}
                   </span>
                 </div>

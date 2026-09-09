@@ -74,14 +74,12 @@ export function CreateChallengeForm({ adminName }: { adminName: string }) {
 
     const taskInputs = validTasks.map((t) => {
       const points = Number(t.points) || 0;
-      const target = t.type === "WEEKLY" && t.target.trim() !== "" ? Number(t.target) : null;
-      // Weekly numeric tasks log a number; weekly checkboxes are rule breakers.
       const isWeekly = t.type === "WEEKLY";
-      const inputType = isWeekly && target !== null ? "NUMBER" : "CHECKBOX";
+      const target = isWeekly && t.target.trim() !== "" ? Number(t.target) : null;
       return {
         name: t.name.trim(),
         type: t.type,
-        inputType,
+        inputType: "CHECKBOX",
         isRuleBreaker: isWeekly && target === null,
         isAlcoholTask: false,
         points,
@@ -276,7 +274,7 @@ export function CreateChallengeForm({ adminName }: { adminName: string }) {
                   {task.type === "WEEKLY" && (
                     <label className="block">
                       <span className="text-[11px] text-muted">
-                        Target (optional)
+                        Days / week
                       </span>
                       <input
                         type="number"
@@ -294,7 +292,7 @@ export function CreateChallengeForm({ adminName }: { adminName: string }) {
                   {task.type === "DAILY"
                     ? `Daily habit — members check it off daily for ${Number(task.points) || 0} pts/day.`
                     : task.target.trim() !== ""
-                    ? `Weekly value — members log a number (${task.target}) to earn ${Number(task.points) || 0} pts.`
+                    ? `Weekly goal — members check it off on ${task.target} days a week to earn ${Number(task.points) || 0} pts at week end.`
                     : `Weekly rule — members earn ${Number(task.points) || 0} pts if they don't break it all week.`}
                 </p>
               </div>
