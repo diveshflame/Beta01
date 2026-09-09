@@ -48,12 +48,12 @@ export default async function ProfilePage() {
     daysLogged === 0
       ? 0
       : Math.round(
-          summaries.reduce(
-            (acc, s) =>
-              acc + (s.totalCount ? (s.completedCount / s.totalCount) * 100 : 0),
-            0
-          ) / daysLogged
-        );
+        summaries.reduce(
+          (acc, s) =>
+            acc + (s.totalCount ? (s.completedCount / s.totalCount) * 100 : 0),
+          0
+        ) / daysLogged
+      );
 
   const stats = {
     daysLogged,
@@ -107,7 +107,7 @@ export default async function ProfilePage() {
             totalPoints: user.totalPoints,
             currentStreak: user.currentStreak,
             longestStreak: user.longestStreak,
-            mantra: user.mantra ?? "I am inevitable",
+            mantra: user.mantra ?? "HAKUNA MATATA",
             streakTokens: user.streakTokens ?? 1,
           }}
           stats={stats}

@@ -28,9 +28,8 @@ export default async function DashboardPage() {
               </p>
               <h2 className="text-lg font-bold">
                 {data.daysToLeaderboardRest > 0
-                  ? `${data.daysToLeaderboardRest} day${
-                      data.daysToLeaderboardRest === 1 ? "" : "s"
-                    } left this week`
+                  ? `${data.daysToLeaderboardRest} day${data.daysToLeaderboardRest === 1 ? "" : "s"
+                  } left this week`
                   : "Weekly results ready"}
               </h2>
             </div>
@@ -140,7 +139,7 @@ function WeeklyProgressSection({
   const results = data.weekResult?.taskResults || [];
   return (
     <div className="rounded-2xl bg-card border border-card-border p-4 space-y-4">
-      <h3 className="text-sm font-semibold">Weekly Progress</h3>
+      <h3 className="text-sm font-semibold">Weekly Challenges progress</h3>
       {results.length === 0 ? (
         <p className="text-muted text-xs">No weekly tasks configured.</p>
       ) : (
