@@ -43,13 +43,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db as any),
   session: { strategy: "jwt" },
   providers,
-  debug: true,
+  debug: process.env.NODE_ENV !== "production",
   pages: {
     signIn: "/signin",
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.id = user.id;
+      if (
+        typeof token.picture === "string" &&
+        (token.picture.length > 2000 || token.picture.startsWith("data:"))
+      ) {
+        delete token.picture;
+      }
       return token;
     },
     async session({ session, token }) {

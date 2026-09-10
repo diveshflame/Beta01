@@ -437,13 +437,20 @@ export async function updateUserProfile(input: {
   const session = await auth();
   if (!session?.user) return { ok: false, error: "Not signed in" };
 
-  const data: { displayName?: string; name?: string; image?: string } = {};
+  const data: {
+    displayName?: string;
+    name?: string;
+    image?: string | null;
+  } = {};
   if (input.displayName !== undefined) {
     data.displayName = input.displayName.trim();
     data.name = input.displayName.trim();
   }
   if (input.image !== undefined) {
-    data.image = input.image;
+    data.image =
+      input.image.trim() && input.image.trim().length <= 120000
+        ? input.image.trim()
+        : null;
   }
 
   await db.user.update({
