@@ -412,6 +412,55 @@ export async function deleteChallenge(
 }
 
 // ---------------------------------------------------------------------------
+// Reset Challenge Points (admin)
+// ---------------------------------------------------------------------------
+
+export async function resetChallengePoints(
+  challengeId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "Not signed in" };
+
+  const challenge = await db.challenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) return { ok: false, error: "Challenge not found" };
+
+  if (challenge.adminId !== session.user.id) {
+    return { ok: false, error: "Only the challenge creator can reset points" };
+  }
+
+  const members = await db.challengeMember.findMany({
+    where: { challengeId },
+    select: { userId: true },
+  });
+
+  // Clear all scoring data for the challenge so points don't get restored by
+  // the auto-recompute on the next log.
+  await db.$transaction([
+    db.taskLog.deleteMany({ where: { challengeId } }),
+    db.daySummary.deleteMany({ where: { challengeId } }),
+    db.weeklyScore.deleteMany({ where: { challengeId } }),
+    db.challengeMember.updateMany({
+      where: { challengeId },
+      data: { points: 0, currentStreak: 0, longestStreak: 0 },
+    }),
+  ]);
+
+  for (const m of members) {
+    await db.user.update({
+      where: { id: m.userId },
+      data: { totalPoints: 0, currentStreak: 0, longestStreak: 0 },
+    });
+  }
+
+  revalidatePath("/challenges");
+  revalidatePath(`/challenges/${challengeId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/log");
+  revalidatePath("/leaderboards");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // Profile: Mantra & Streak Insurance
 // ---------------------------------------------------------------------------
 

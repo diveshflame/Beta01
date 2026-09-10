@@ -12,7 +12,7 @@ vi.mock("next/cache", async () => ({
 }));
 
 import { db } from "@/lib/db";
-import { leaveChallenge, deleteChallenge } from "@/app/actions";
+import { leaveChallenge, deleteChallenge, resetChallengePoints } from "@/app/actions";
 
 const MON = new Date(2026, 0, 5, 12);
 let multiId = "";
@@ -131,6 +131,111 @@ describe("deleteChallenge", () => {
 
   it("denies deletion when the caller is not the owner", async () => {
     const res = await deleteChallenge(otherOwnerChallengeId);
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("creator");
+    expect(await db.challenge.findUnique({ where: { id: otherOwnerChallengeId } }))
+      .not.toBeNull();
+  });
+});
+
+describe("resetChallengePoints", () => {
+  it("clears every member's points, streaks, and logs", async () => {
+    const c = await db.challenge.create({
+      data: {
+        name: "Reset",
+        description: "",
+        startDate: MON,
+        endDate: new Date(2026, 1, 28, 12),
+        isPublic: true,
+        inviteCode: "DANG06",
+        adminId: "ADMIN_USER",
+        members: {
+          create: [{ userId: "ADMIN_USER" }, { userId: multiMemberId }],
+        },
+      },
+    });
+    const task = await db.challengeTask.create({
+      data: {
+        challengeId: c.id,
+        name: "ResetTask",
+        type: "DAILY",
+        inputType: "CHECKBOX",
+        isRuleBreaker: false,
+        isAlcoholTask: false,
+        points: 5,
+        target: null,
+      },
+    });
+    await db.taskLog.create({
+      data: {
+        userId: multiMemberId,
+        challengeId: c.id,
+        taskId: task.id,
+        date: MON,
+        completed: true,
+        value: 1,
+      },
+    });
+    await db.daySummary.create({
+      data: {
+        userId: multiMemberId,
+        challengeId: c.id,
+        date: MON,
+        completedCount: 3,
+        totalCount: 3,
+        pointsAwarded: 50,
+        dailyBonusAwarded: true,
+        streakBonusAwarded: false,
+      },
+    });
+    await db.weeklyScore.create({
+      data: {
+        userId: multiMemberId,
+        challengeId: c.id,
+        weekStart: MON,
+        weekEnd: new Date(2026, 0, 11, 12),
+        weekNumber: 1,
+        points: 40,
+      },
+    });
+    await db.challengeMember.update({
+      where: { challengeId_userId: { challengeId: c.id, userId: multiMemberId } },
+      data: { points: 90, currentStreak: 3, longestStreak: 5 },
+    });
+    await db.user.update({
+      where: { id: multiMemberId },
+      data: { totalPoints: 90, currentStreak: 3, longestStreak: 5 },
+    });
+
+    const res = await resetChallengePoints(c.id);
+    expect(res.ok).toBe(true);
+
+    expect(
+      await db.taskLog.findMany({ where: { challengeId: c.id } })
+    ).toHaveLength(0);
+    expect(
+      await db.daySummary.findMany({ where: { challengeId: c.id } })
+    ).toHaveLength(0);
+    expect(
+      await db.weeklyScore.findMany({ where: { challengeId: c.id } })
+    ).toHaveLength(0);
+
+    for (const userId of ["ADMIN_USER", multiMemberId]) {
+      const m = await db.challengeMember.findUnique({
+        where: { challengeId_userId: { challengeId: c.id, userId } },
+      });
+      expect(m!.points).toBe(0);
+      expect(m!.currentStreak).toBe(0);
+      expect(m!.longestStreak).toBe(0);
+      const u = await db.user.findUnique({ where: { id: userId } });
+      expect(u!.totalPoints).toBe(0);
+      expect(u!.currentStreak).toBe(0);
+      expect(u!.longestStreak).toBe(0);
+    }
+  });
+
+  it("denies reset when the caller is not the creator", async () => {
+    const res = await resetChallengePoints(otherOwnerChallengeId);
     expect(res.ok).toBe(false);
     expect(res.error).toContain("creator");
     expect(await db.challenge.findUnique({ where: { id: otherOwnerChallengeId } }))

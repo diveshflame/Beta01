@@ -74,14 +74,17 @@ describe("saveTaskLog updates member points", () => {
     let m = await db.challengeMember.findUnique({ where: { id: member.id } });
     expect(m!.points).toBe(9);
 
-    // Log a weekly number task (gym value 4 hits the target) -> adds 40 pts.
+    // Log a weekly number task (gym value 4 hits the target) -> creates the
+    // week's 40-pt WeeklyScore. Weekly points only credit on Sunday, so the
+    // member total reflects that depending on the day the test runs.
+    const sundayCredit = new Date().getDay() === 0 ? 40 : 0;
     await saveTaskLog(challengeId, taskIds["Gym"], true, 4);
     m = await db.challengeMember.findUnique({ where: { id: member.id } });
-    expect(m!.points).toBe(49);
+    expect(m!.points).toBe(9 + sundayCredit);
 
     // Toggling the habit off should remove those 5 points.
     await saveTaskLog(challengeId, taskIds["Habit A"], false, 0);
     m = await db.challengeMember.findUnique({ where: { id: member.id } });
-    expect(m!.points).toBe(44);
+    expect(m!.points).toBe(4 + sundayCredit);
   });
 });

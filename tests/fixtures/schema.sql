@@ -12,6 +12,8 @@ CREATE TABLE "users" (
     "totalPoints" INTEGER NOT NULL DEFAULT 0,
     "currentStreak" INTEGER NOT NULL DEFAULT 0,
     "longestStreak" INTEGER NOT NULL DEFAULT 0,
+    "mantra" TEXT DEFAULT 'I am inevitable',
+    "streakTokens" INTEGER NOT NULL DEFAULT 1,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")

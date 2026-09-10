@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveTaskLog } from "@/app/actions";
 import {
   getDailyCompletionSummary,
+  DAILY_BONUS_POINTS,
   type ChallengeTask,
   type TaskLog,
 } from "@/lib/scoring";
@@ -179,6 +180,7 @@ export function DailyLogClient({
                 <HabitRow
                   key={task.id}
                   label={task.name}
+                  points={task.points}
                   checked={
                     task.isRuleBreaker ? !current.completed : current.completed
                   }
@@ -221,18 +223,23 @@ function Section({
 
 function HabitRow({
   label,
+  points,
   checked,
   onToggle,
 }: {
   label: string;
+  points: number;
   checked: boolean;
   onToggle: () => void;
 }) {
   return (
     <div className="flex items-center justify-between py-3">
-      <span className={`text-sm ${checked ? "text-foreground font-medium" : "text-muted"}`}>
-        {label}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className={`text-sm ${checked ? "text-foreground font-medium" : "text-muted"}`}>
+          {label}
+        </span>
+        <span className="text-[11px] text-accent font-semibold">{points} pts</span>
+      </div>
       <Toggle checked={checked} onChange={onToggle} />
     </div>
   );
@@ -359,7 +366,7 @@ function CompletionBar({
       </div>
       <p className="text-xs text-muted mt-1.5">
         {completion.achieved}/{completion.total} daily tasks done · 75% earns
-        +5 bonus
+        +{DAILY_BONUS_POINTS} bonus
       </p>
     </div>
   );

@@ -40,7 +40,7 @@ export interface ChallengeMember {
 }
 
 export const DAILY_BONUS_THRESHOLD = 0.75;
-export const DAILY_BONUS_POINTS = 5;
+export const DAILY_BONUS_POINTS = 15;
 export const STREAK_BONUS_POINTS = 15;
 export const STREAK_BONUS_DAYS = 7;
 

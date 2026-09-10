@@ -8,6 +8,9 @@ import {
   endOfDay,
   startOfDay,
   daysBetween,
+  DAILY_BONUS_THRESHOLD,
+  DAILY_BONUS_POINTS,
+  STREAK_BONUS_POINTS,
 } from "@/lib/scoring";
 
 export async function runDayScoring(
@@ -46,7 +49,7 @@ export async function runDayScoring(
   loggedDates.forEach((key) => {
     const dayLogs = logsByDate[key];
     const comp = getDailyCompletionSummary(tasks, dayLogs);
-    const isSuccess = comp.total > 0 && comp.percent >= 75; // 75% threshold
+    const isSuccess = comp.total > 0 && comp.percent >= DAILY_BONUS_THRESHOLD * 100;
     if (isSuccess) {
       successKeys.add(key);
     }
@@ -87,11 +90,11 @@ export async function runDayScoring(
       }
     });
 
-    const isSuccess = comp.total > 0 && comp.percent >= 75;
+    const isSuccess = comp.total > 0 && comp.percent >= DAILY_BONUS_THRESHOLD * 100;
     let awarded = habitPoints;
-    if (isSuccess) awarded += 5; // DAILY_BONUS_POINTS = 5
+    if (isSuccess) awarded += DAILY_BONUS_POINTS;
     const streakBonus = idx % 7 === 0; // STREAK_BONUS_DAYS = 7
-    if (streakBonus) awarded += 15; // STREAK_BONUS_POINTS = 15
+    if (streakBonus) awarded += STREAK_BONUS_POINTS;
 
     await db.daySummary.upsert({
       where: {

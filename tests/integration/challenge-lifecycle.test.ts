@@ -152,7 +152,7 @@ describe("challenge lifecycle", () => {
 
     // --- Daily points ---
     // Habit points/day = 23 (7 standard) + 11 (3 unbroken rule breakers) = 34
-    // +5 daily bonus (100%) = 39 for days 1..6; day 7 (7-day streak) gets +15 → 54
+    // +15 daily bonus (100%) = 49 for days 1..6; day 7 (7-day streak) gets +15 → 64
     const summaries = await db.daySummary.findMany({
       where: { userId: alice.id, challengeId },
       orderBy: { date: "asc" },
@@ -160,14 +160,14 @@ describe("challenge lifecycle", () => {
     expect(summaries).toHaveLength(7);
     for (let i = 0; i < 6; i++) {
       expect(summaries[i].dailyBonusAwarded).toBe(true);
-      expect(summaries[i].pointsAwarded).toBe(39);
+      expect(summaries[i].pointsAwarded).toBe(49);
       expect(summaries[i].streakBonusAwarded).toBe(false);
     }
-    expect(summaries[6].pointsAwarded).toBe(54); // 39 + 15 streak
+    expect(summaries[6].pointsAwarded).toBe(64); // 49 + 15 streak
     expect(summaries[6].streakBonusAwarded).toBe(true);
 
     const dailyTotal = summaries.reduce((s, d) => s + d.pointsAwarded, 0);
-    expect(dailyTotal).toBe(6 * 39 + 54); // 288
+    expect(dailyTotal).toBe(6 * 49 + 64); // 358
 
     // --- Weekly points ---
     const weekly = await db.weeklyScore.findUnique({
@@ -182,7 +182,7 @@ describe("challenge lifecycle", () => {
     const member = await db.challengeMember.findUnique({
       where: { challengeId_userId: { challengeId, userId: alice.id } },
     });
-    expect(member!.points).toBe(288 + 145); // 433
+    expect(member!.points).toBe(358 + 145); // 503
     expect(member!.currentStreak).toBe(7);
     expect(member!.longestStreak).toBe(7);
   });
